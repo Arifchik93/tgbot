@@ -6,7 +6,12 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 import dateparser
 import os
 import asyncio 
+import psycopg2
+from psycopg2 import sql
 
+# Функция для подключения к базе данных
+def get_db_connection():
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
         
 
 # Настройка логирования
@@ -22,21 +27,27 @@ ACTION_ADD_REMINDER = 'add_reminder'
 ACTION_EDIT_NOTE = 'edit_note'
 ACTION_EDIT_REMINDER = 'edit_reminder'
 
-DB_PATH = "/data/organizer.db"
 
-# Проверка прав на запись
-if not os.access(os.path.dirname(DB_PATH), os.W_OK):
-    raise PermissionError(f"Нет прав на запись в {os.path.dirname(DB_PATH)}")
-
-# Инициализация базы данных
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS notes
-                     (user_id INTEGER, tag TEXT, note TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS reminders
-                     (user_id INTEGER, reminder_time TEXT, reminder_text TEXT)''')
-        conn.commit()
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS notes (
+            user_id INTEGER,
+            tag TEXT,
+            note TEXT
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS reminders (
+            user_id INTEGER,
+            reminder_time TEXT,
+            reminder_text TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+        
             
 # Общая функция для выполнения SQL-запросов
 def execute_query(query, params=(), fetch=False):
