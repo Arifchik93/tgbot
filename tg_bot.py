@@ -1,24 +1,12 @@
 import sqlite3
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, JobQueue
 import dateparser
 import os
-import asyncio
+import asyncio 
 
-
-async def check_reminders(context):
-    while True:
-        now = datetime.now().strftime('%Y-%m-%d %H:%M')
-        reminders = execute_query("SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= ?", (now,), fetch=True)
-        
-        for reminder in reminders:
-            user_id, reminder_text = reminder
-            await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
-            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
-        
-        await asyncio.sleep(60)  # Проверяем каждую минуту
         
 
 # Настройка логирования
@@ -343,6 +331,31 @@ async def handle_message(update: Update, context) -> None:
 
 
 
+
+
+async def check_reminders(context):
+    try:
+        # Получаем текущее время в UTC
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')
+        logger.info(f"Проверка напоминаний. Текущее время: {now}")
+        
+        # Ищем напоминания, время которых наступило
+        reminders = execute_query(
+            "SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= ?",
+            (now,),
+            fetch=True
+        )
+        logger.info(f"Найдено напоминаний: {len(reminders)}")
+        
+        # Отправляем уведомления и удаляем напоминания
+        for reminder in reminders:
+            user_id, reminder_text = reminder
+            await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
+            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
+        
+    except Exception as e:
+        logger.error(f"Ошибка в check_reminders: {e}")
+
 def main() -> None:
     # Инициализация базы данных
     init_db()
@@ -354,8 +367,8 @@ def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise ValueError("Токен Telegram-бота не задан. Убедитесь, что переменная окружения TELEGRAM_BOT_TOKEN установлена.")
 
-    # Создание приложения
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    # Создание приложения с поддержкой JobQueue
+    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Добавление обработчиков
     application.add_handler(CommandHandler("start", start))
@@ -363,7 +376,7 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Добавление фоновой задачи для проверки напоминаний
-    application.job_queue.run_repeating(check_reminders, interval=60.0, first=0.0)
+    application.job_queue.run_repeating(check_reminders, interval=300.0, first=0.0)
 
     # Запуск бота
     application.run_polling()
