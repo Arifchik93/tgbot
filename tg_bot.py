@@ -33,14 +33,14 @@ def init_db():
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS notes (
-            user_id INTEGER,
+            user_id BIGINT,
             tag TEXT,
             note TEXT
         )
     ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS reminders (
-            user_id INTEGER,
+            user_id BIGINT,
             reminder_time TEXT,
             reminder_text TEXT
         )
