@@ -326,20 +326,25 @@ async def handle_message(update: Update, context) -> None:
                 await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
                 
 
-# Основная функция
 def main() -> None:
     init_db()
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not TELEGRAM_BOT_TOKEN:
-    raise ValueError("Токен Telegram-бота не задан. Убедитесь, что переменная окружения TELEGRAM_BOT_TOKEN установлена.")
     
+    # Проверка наличия токена
+    if not TELEGRAM_BOT_TOKEN:
+        raise ValueError("Токен Telegram-бота не задан. Убедитесь, что переменная окружения TELEGRAM_BOT_TOKEN установлена.")
+    
+    # Создание приложения
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
+    # Добавление обработчиков
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+    # Запуск бота
     application.run_polling()
+    
 
 if __name__ == '__main__':
     main()
