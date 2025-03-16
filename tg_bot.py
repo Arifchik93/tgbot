@@ -1,21 +1,23 @@
-import sqlite3
 import logging
 from datetime import datetime, timedelta, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, JobQueue, ApplicationBuilder
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ApplicationBuilder
 import dateparser
 import os
-import asyncio 
 import psycopg2
 from psycopg2 import sql
-
-
-
 
 # Функция для подключения к базе данных
 def get_db_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
-        
+
+def drop_tables():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DROP TABLE IF EXISTS notes")
+    c.execute("DROP TABLE IF EXISTS reminders")
+    conn.commit()
+    conn.close()
 
 # Настройка логирования
 logging.basicConfig(
@@ -25,151 +27,111 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы для действий
-ACTION_ADD_NOTE = 'add_note'   
+ACTION_ADD_NOTE = 'add_note'
 ACTION_ADD_REMINDER = 'add_reminder'
 ACTION_EDIT_NOTE = 'edit_note'
 ACTION_EDIT_REMINDER = 'edit_reminder'
 
-def drop_tables():
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("DROP TABLE IF EXISTS notes")
-    c.execute("DROP TABLE IF EXISTS reminders")
-    conn.commit()
-    conn.close()
-    
+# Инициализация базы данных
 def init_db():
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS notes (
-            user_id BIGINT,
-            tag TEXT,
-            note TEXT
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS reminders (
-            user_id BIGINT,
-            reminder_time TEXT,
-            reminder_text TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-        
-            
-def execute_query(query, params=(), fetch=False):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute(query, params)
-    if fetch:
-        result = c.fetchall()
-        conn.close()
-        return result
-    conn.commit()
-    conn.close()
-
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS notes (
+                    user_id BIGINT,
+                    tag TEXT,
+                    note TEXT
+                )
+            ''')
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS reminders (
+                    user_id BIGINT,
+                    reminder_time TIMESTAMP,
+                    reminder_text TEXT
+                )
+            ''')
+            conn.commit()
 
 # Добавление заметки
 def add_note(user_id, tag, note):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("INSERT INTO notes (user_id, tag, note) VALUES (%s, %s, %s)", (user_id, tag, note))
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("INSERT INTO notes (user_id, tag, note) VALUES (%s, %s, %s)", (user_id, tag, note))
+            conn.commit()
 
 # Поиск заметок по тегу
 def find_notes(user_id, tag=None):
-    conn = get_db_connection()
-    c = conn.cursor()
-    if tag:
-        c.execute("SELECT note FROM notes WHERE user_id=%s AND tag=%s", (user_id, tag))
-    else:
-        c.execute("SELECT note FROM notes WHERE user_id=%s", (user_id,))
-    notes = c.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            if tag:
+                c.execute("SELECT note FROM notes WHERE user_id=%s AND tag=%s", (user_id, tag))
+            else:
+                c.execute("SELECT note FROM notes WHERE user_id=%s", (user_id,))
+            notes = c.fetchall()
     return notes
-
-# Добавление напоминания
-def add_reminder(user_id, reminder_time, reminder_text):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("INSERT INTO reminders (user_id, reminder_time, reminder_text) VALUES (%s, %s, %s)", (user_id, reminder_time, reminder_text))
-    conn.commit()
-    conn.close()
-
 
 # Получение всех тегов заметок
 def get_all_tags(user_id):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT DISTINCT tag FROM notes WHERE user_id=%s", (user_id,))
-    tags = c.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT DISTINCT tag FROM notes WHERE user_id=%s", (user_id,))
+            tags = c.fetchall()
     return tags
-    
+
 # Удаление заметки
 def delete_note(user_id, note_text):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("DELETE FROM notes WHERE user_id=%s AND note=%s", (user_id, note_text))
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("DELETE FROM notes WHERE user_id=%s AND note=%s", (user_id, note_text))
+            conn.commit()
 
 # Добавление напоминания
 def add_reminder(user_id, reminder_time, reminder_text):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("INSERT INTO reminders (user_id, reminder_time, reminder_text) VALUES (%s, %s, %s)", (user_id, reminder_time, reminder_text))
-    conn.commit()
-    conn.close()
-    
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("INSERT INTO reminders (user_id, reminder_time, reminder_text) VALUES (%s, %s, %s)", 
+                      (user_id, reminder_time, reminder_text))
+            conn.commit()
 
 # Удаление напоминания
 def delete_reminder(user_id, reminder_text):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("DELETE FROM reminders WHERE user_id=%s AND reminder_text=%s", (user_id, reminder_text))
-    conn.commit()
-    conn.close()
-    
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("DELETE FROM reminders WHERE user_id=%s AND reminder_text=%s", (user_id, reminder_text))
+            conn.commit()
 
 # Получение напоминаний на определенную дату
 def get_reminders_by_date(user_id, date):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT reminder_time, reminder_text FROM reminders WHERE user_id=%s AND date(reminder_time)=%s ORDER BY reminder_time", (user_id, date))
-    reminders = c.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT reminder_time, reminder_text FROM reminders WHERE user_id=%s AND DATE(reminder_time)=%s ORDER BY reminder_time", 
+                      (user_id, date))
+            reminders = c.fetchall()
     return reminders
 
 # Получение напоминаний на неделю
 def get_reminders_for_week(user_id):
-    today = datetime.now().strftime('%Y-%m-%d')
-    next_week = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT reminder_time, reminder_text FROM reminders WHERE user_id=%s AND date(reminder_time) BETWEEN %s AND %s ORDER BY reminder_time", (user_id, today, next_week))
-    reminders = c.fetchall()
-    conn.close()
+    today = datetime.now().date()
+    next_week = today + timedelta(days=7)
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT reminder_time, reminder_text FROM reminders WHERE user_id=%s AND reminder_time BETWEEN %s AND %s ORDER BY reminder_time", 
+                      (user_id, today, next_week))
+            reminders = c.fetchall()
     return reminders
-    
+
 # Получение прошедших напоминаний
 def get_past_reminders(user_id):
-    today = datetime.now().strftime('%Y-%m-%d')
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT reminder_time, reminder_text FROM reminders WHERE user_id=%s AND date(reminder_time) < %s ORDER BY reminder_time", (user_id, today))
-    reminders = c.fetchall()
-    conn.close()
+    today = datetime.now().date()
+    with get_db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT reminder_time, reminder_text FROM reminders WHERE user_id=%s AND reminder_time < %s ORDER BY reminder_time", 
+                      (user_id, today))
+            reminders = c.fetchall()
     return reminders
-    
-
 
 # Главное меню с Inline-клавиатурой и Reply-клавиатурой
 async def start(update: Update, context) -> None:
-    # Создаем Inline-клавиатуру
     inline_keyboard = [
         [InlineKeyboardButton("Добавить заметку", callback_data=ACTION_ADD_NOTE)],
         [InlineKeyboardButton("Добавить напоминание", callback_data=ACTION_ADD_REMINDER)],
@@ -178,23 +140,14 @@ async def start(update: Update, context) -> None:
     ]
     inline_reply_markup = InlineKeyboardMarkup(inline_keyboard)
 
-    # Создаем Reply-клавиатуру
     reply_keyboard = [
         ["Меню"],
         ["Добавить заметку", "Добавить напоминание"]
     ]
     reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True, one_time_keyboard=True)
 
-    # Отправляем сообщение с обеими клавиатурами
-    await update.message.reply_text(
-        "Выберите действие:",
-        reply_markup=reply_markup  # Reply-клавиатура
-    )
-    await update.message.reply_text(
-        "Или используйте меню ниже:",
-        reply_markup=inline_reply_markup  # Inline-клавиатура
-    )
-
+    await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
+    await update.message.reply_text("Или используйте меню ниже:", reply_markup=inline_reply_markup)
 
 # Меню заметок
 async def notes_menu(update: Update, context) -> None:
@@ -280,7 +233,7 @@ async def show_reminders(update: Update, context, reminders, message_text):
 
     if reminders:
         for reminder in reminders:
-            reminder_time = datetime.fromisoformat(reminder[0])
+            reminder_time = reminder[0]
             reminder_text = reminder[1]
             keyboard = [
                 [InlineKeyboardButton("✏️", callback_data=f"edit_reminder_{reminder_text}"),
@@ -294,14 +247,14 @@ async def show_reminders(update: Update, context, reminders, message_text):
 # Отображение напоминаний на сегодня
 async def today_reminders(update: Update, context) -> None:
     user_id = update.callback_query.from_user.id
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now().date()
     reminders = get_reminders_by_date(user_id, today)
     await show_reminders(update, context, reminders, "напоминаний на сегодня")
 
 # Отображение напоминаний на завтра
 async def tomorrow_reminders(update: Update, context) -> None:
     user_id = update.callback_query.from_user.id
-    tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+    tomorrow = (datetime.now() + timedelta(days=1)).date()
     reminders = get_reminders_by_date(user_id, tomorrow)
     await show_reminders(update, context, reminders, "напоминаний на завтра")
 
@@ -399,7 +352,7 @@ async def handle_message(update: Update, context) -> None:
                     reminder_time = dateparser.parse(time_part, languages=['ru'])
 
                     if reminder_time:
-                        add_reminder(user_id, reminder_time.isoformat(), reminder_text)
+                        add_reminder(user_id, reminder_time, reminder_text)
                         await update.message.reply_text(f"Напоминание добавлено на {reminder_time.strftime('%Y-%m-%d %H:%M')}:\n{reminder_text}")
                     else:
                         await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
@@ -408,21 +361,19 @@ async def handle_message(update: Update, context) -> None:
             except Exception as e:
                 logger.error(f"Ошибка при добавлении напоминания: {e}")
                 await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
-                
 
-
+# Функция для проверки напоминаний
 async def check_reminders(context):
     try:
         # Получаем текущее время в UTC
-        now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')
+        now = datetime.now(timezone.utc)
         logger.info(f"Проверка напоминаний. Текущее время: {now}")
         
         # Ищем напоминания, время которых наступило
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= %s", (now,))
-        reminders = c.fetchall()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= %s", (now,))
+                reminders = c.fetchall()
         
         logger.info(f"Найдено напоминаний: {len(reminders)}")
         
@@ -434,11 +385,10 @@ async def check_reminders(context):
         
     except Exception as e:
         logger.error(f"Ошибка в check_reminders: {e}")
-        
-            
 
+# Основная функция
 def main() -> None:
-    # drop_tables()
+      drop_tables() 
     # Инициализация базы данных
     init_db()
 
@@ -462,7 +412,6 @@ def main() -> None:
 
     # Запуск бота
     application.run_polling()
-    
 
 if __name__ == '__main__':
     main()
