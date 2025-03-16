@@ -418,33 +418,11 @@ async def check_reminders(context):
         for reminder in reminders:
             user_id, reminder_text = reminder
             await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
-            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
-        
-    except Exception as e:
-        logger.error(f"Ошибка в check_reminders: {e}")async def check_reminders(context):
-    try:
-        # Получаем текущее время в UTC
-        now = datetime.now(timezone.utc)
-        logger.info(f"Проверка напоминаний. Текущее время: {now}")
-        
-        # Ищем напоминания, время которых наступило
-        with get_db_connection() as conn:
-            with conn.cursor() as c:
-                c.execute("SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= %s", (now,))
-                reminders = c.fetchall()
-        
-        logger.info(f"Найдено напоминаний: {len(reminders)}")
-        
-        # Отправляем уведомления и удаляем напоминания
-        for reminder in reminders:
-            user_id, reminder_text = reminder
-            await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
-            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
+            # delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
         
     except Exception as e:
         logger.error(f"Ошибка в check_reminders: {e}")
         
-
 # Основная функция
 def main() -> None:
     
