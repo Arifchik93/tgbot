@@ -342,27 +342,25 @@ async def handle_message(update: Update, context) -> None:
                 await update.message.reply_text(f"Заметка добавлена с тегом {tag}:\n{note}")
             else:
                 await update.message.reply_text("Неверный формат. Используйте #тег текст заметки")
-    elif action == ACTION_ADD_REMINDER:
-        try:
-            if '-' in text:
-            reminder_text, time_part = text.split('-', 1)
-            reminder_text = reminder_text.strip()
-            time_part = time_part.strip()
-
-            reminder_time = dateparser.parse(time_part, languages=['ru'])
-            
-                if reminder_time:
-                # Преобразуем время в UTC перед сохранением в базу данных
-                reminder_time = reminder_time.astimezone(timezone.utc)
-                add_reminder(user_id, reminder_time, reminder_text)
-                    await update.message.reply_text(f"Напоминание добавлено на {reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC):\n{reminder_text}")
+        elif action == ACTION_ADD_REMINDER:
+            try:
+                if '-' in text:
+                reminder_text, time_part = text.split('-', 1)
+                reminder_text = reminder_text.strip()
+                time_part = time_part.strip()
+                reminder_time = dateparser.parse(time_part, languages=['ru'])          
+                    if reminder_time:
+                    # Преобразуем время в UTC перед сохранением в базу данных
+                    reminder_time = reminder_time.astimezone(timezone.utc)
+                    add_reminder(user_id, reminder_time, reminder_text)
+                        await update.message.reply_text(f"Напоминание добавлено на {reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC):\n{reminder_text}")
+                    else:
+                        await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
                 else:
-                    await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
-            else:
-            await update.message.reply_text("Неверный формат. Используйте: текст напоминания - дата и время")
-        except Exception as e:
-        logger.error(f"Ошибка при добавлении напоминания: {e}")
-            await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
+                    await update.message.reply_text("Неверный формат. Используйте: текст напоминания - дата и время")
+           except Exception as e:
+               logger.error(f"Ошибка при добавлении напоминания: {e}")
+               await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
 
 async def check_reminders(context):
     try:
