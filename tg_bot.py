@@ -320,7 +320,8 @@ async def button(update: Update, context) -> None:
     elif callback_data.startswith('tag_'):
         await show_notes_by_tag(update, context)
 
-# Обработка текстовых сообщений (включая Reply-клавиатуру)
+MY_TIMEZONE = timezone(timedelta(hours=3))
+
 async def handle_message(update: Update, context) -> None:
     user_id = update.message.from_user.id
     text = update.message.text
@@ -349,13 +350,14 @@ async def handle_message(update: Update, context) -> None:
                     reminder_text = reminder_text.strip()
                     time_part = time_part.strip()
 
+                    # Парсим время с учетом локального времени пользователя
                     reminder_time = dateparser.parse(time_part, languages=['ru'])
                     
                     if reminder_time:
-                        # Преобразуем время в UTC перед сохранением в базу данных
-                        reminder_time = reminder_time.astimezone(timezone.utc)
+                        # Приводим время к UTC+3
+                        reminder_time = reminder_time.replace(tzinfo=MY_TIMEZONE).astimezone(timezone.utc)
                         add_reminder(user_id, reminder_time, reminder_text)
-                        await update.message.reply_text(f"Напоминание добавлено на {reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC):\n{reminder_text}")
+                        await update.message.reply_text(f"Напоминание добавлено на {reminder_time.astimezone(MY_TIMEZONE).strftime('%Y-%m-%d %H:%M')} (UTC+3):\n{reminder_text}")
                     else:
                         await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
                 else:
@@ -378,15 +380,16 @@ async def handle_message(update: Update, context) -> None:
                     new_reminder_text = new_reminder_text.strip()
                     time_part = time_part.strip()
 
+                    # Парсим время с учетом локального времени пользователя
                     new_reminder_time = dateparser.parse(time_part, languages=['ru'])
                     
                     if new_reminder_time:
-                        # Преобразуем время в UTC перед сохранением в базу данных
-                        new_reminder_time = new_reminder_time.astimezone(timezone.utc)
+                        # Приводим время к UTC+3
+                        new_reminder_time = new_reminder_time.replace(tzinfo=MY_TIMEZONE).astimezone(timezone.utc)
                         old_reminder_text = context.user_data.get('reminder_to_edit')
                         delete_reminder(user_id, old_reminder_text)
                         add_reminder(user_id, new_reminder_time, new_reminder_text)
-                        await update.message.reply_text(f"Напоминание отредактировано на {new_reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC):\n{new_reminder_text}")
+                        await update.message.reply_text(f"Напоминание отредактировано на {new_reminder_time.astimezone(MY_TIMEZONE).strftime('%Y-%m-%d %H:%M')} (UTC+3):\n{new_reminder_text}")
                     else:
                         await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
                 else:
@@ -396,7 +399,7 @@ async def handle_message(update: Update, context) -> None:
                 await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
             context.user_data.pop('action')
             context.user_data.pop('reminder_to_edit')
-
+            
 async def check_reminders(context):
     try:
         # Получаем текущее время в UTC
@@ -415,10 +418,32 @@ async def check_reminders(context):
         for reminder in reminders:
             user_id, reminder_text = reminder
             await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
-            # delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
+            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
+        
+    except Exception as e:
+        logger.error(f"Ошибка в check_reminders: {e}")async def check_reminders(context):
+    try:
+        # Получаем текущее время в UTC
+        now = datetime.now(timezone.utc)
+        logger.info(f"Проверка напоминаний. Текущее время: {now}")
+        
+        # Ищем напоминания, время которых наступило
+        with get_db_connection() as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= %s", (now,))
+                reminders = c.fetchall()
+        
+        logger.info(f"Найдено напоминаний: {len(reminders)}")
+        
+        # Отправляем уведомления и удаляем напоминания
+        for reminder in reminders:
+            user_id, reminder_text = reminder
+            await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
+            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
         
     except Exception as e:
         logger.error(f"Ошибка в check_reminders: {e}")
+        
 
 # Основная функция
 def main() -> None:
