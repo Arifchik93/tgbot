@@ -330,9 +330,6 @@ async def handle_message(update: Update, context) -> None:
                 
 
 
-
-
-
 async def check_reminders(context):
     try:
         # Получаем текущее время в UTC
@@ -341,20 +338,26 @@ async def check_reminders(context):
         
         # Ищем напоминания, время которых наступило
         reminders = execute_query(
-            "SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= ?",
+            "SELECT user_id, reminder_time, reminder_text FROM reminders WHERE reminder_time <= ?",
             (now,),
             fetch=True
         )
         logger.info(f"Найдено напоминаний: {len(reminders)}")
         
+        # Логируем найденные напоминания
+        for reminder in reminders:
+            user_id, reminder_time, reminder_text = reminder
+            logger.info(f"Напоминание для user_id={user_id}: {reminder_time} - {reminder_text}")
+        
         # Отправляем уведомления и удаляем напоминания
         for reminder in reminders:
-            user_id, reminder_text = reminder
+            user_id, reminder_time, reminder_text = reminder
             await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
             delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
         
     except Exception as e:
         logger.error(f"Ошибка в check_reminders: {e}")
+            
 
 def main() -> None:
     # Инициализация базы данных
