@@ -371,4 +371,5 @@ async def main() -> None:
     await application.run_polling()
 
 if __name__ == '__main__':
+    # Запуск асинхронного main()
     asyncio.run(main())
