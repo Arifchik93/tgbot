@@ -49,24 +49,46 @@ def init_db():
     conn.close()
         
             
-# Общая функция для выполнения SQL-запросов
 def execute_query(query, params=(), fetch=False):
-    with sqlite3.connect('DB_PATH') as conn:
-        c = conn.cursor()
-        c.execute(query, params)
-        if fetch:
-            return c.fetchall()
-        conn.commit()
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(query, params)
+    if fetch:
+        result = c.fetchall()
+        conn.close()
+        return result
+    conn.commit()
+    conn.close()
+
 
 # Добавление заметки
 def add_note(user_id, tag, note):
-    execute_query("INSERT INTO notes (user_id, tag, note) VALUES (?, ?, ?)", (user_id, tag, note))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO notes (user_id, tag, note) VALUES (%s, %s, %s)", (user_id, tag, note))
+    conn.commit()
+    conn.close()
 
 # Поиск заметок по тегу
 def find_notes(user_id, tag=None):
+    conn = get_db_connection()
+    c = conn.cursor()
     if tag:
-        return execute_query("SELECT note FROM notes WHERE user_id=? AND tag=?", (user_id, tag), fetch=True)
-    return execute_query("SELECT note FROM notes WHERE user_id=?", (user_id,), fetch=True)
+        c.execute("SELECT note FROM notes WHERE user_id=%s AND tag=%s", (user_id, tag))
+    else:
+        c.execute("SELECT note FROM notes WHERE user_id=%s", (user_id,))
+    notes = c.fetchall()
+    conn.close()
+    return notes
+
+# Добавление напоминания
+def add_reminder(user_id, reminder_time, reminder_text):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO reminders (user_id, reminder_time, reminder_text) VALUES (%s, %s, %s)", (user_id, reminder_time, reminder_text))
+    conn.commit()
+    conn.close()
+
 
 # Получение всех тегов заметок
 def get_all_tags(user_id):
@@ -78,7 +100,12 @@ def delete_note(user_id, note_text):
 
 # Добавление напоминания
 def add_reminder(user_id, reminder_time, reminder_text):
-    execute_query("INSERT INTO reminders (user_id, reminder_time, reminder_text) VALUES (?, ?, ?)", (user_id, reminder_time, reminder_text))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO reminders (user_id, reminder_time, reminder_text) VALUES (%s, %s, %s)", (user_id, reminder_time, reminder_text))
+    conn.commit()
+    conn.close()
+    
 
 # Удаление напоминания
 def delete_reminder(user_id, reminder_text):
