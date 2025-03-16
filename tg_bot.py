@@ -333,6 +333,10 @@ def main() -> None:
     # Получение токена из переменной окружения
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
+     # Удаление кавычек, если они есть
+    if TELEGRAM_BOT_TOKEN:
+        TELEGRAM_BOT_TOKEN = TELEGRAM_BOT_TOKEN.strip('"\'')  # Удаляем кавычки
+
     # Проверка наличия токена
     if not TELEGRAM_BOT_TOKEN:
         raise ValueError("Токен Telegram-бота не задан. Убедитесь, что переменная окружения TELEGRAM_BOT_TOKEN установлена.")
