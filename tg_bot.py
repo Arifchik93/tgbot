@@ -348,8 +348,8 @@ async def handle_message(update: Update, context) -> None:
                     reminder_text, time_part = text.split('-', 1)
                     reminder_text = reminder_text.strip()
                     time_part = time_part.strip()
-                    
-                    reminder_time = dateparser.parse(time_part, languages=['ru'])  
+
+                    reminder_time = dateparser.parse(time_part, languages=['ru'])
                     
                     if reminder_time:
                         # Преобразуем время в UTC перед сохранением в базу данных
@@ -360,9 +360,42 @@ async def handle_message(update: Update, context) -> None:
                         await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
                 else:
                     await update.message.reply_text("Неверный формат. Используйте: текст напоминания - дата и время")
-           except Exception as e:
-               logger.error(f"Ошибка при добавлении напоминания: {e}")
-               await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
+            except Exception as e:
+                logger.error(f"Ошибка при добавлении напоминания: {e}")
+                await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
+        elif action == ACTION_EDIT_NOTE:
+            new_note_text = text
+            old_note_text = context.user_data.get('note_to_edit')
+            delete_note(user_id, old_note_text)
+            add_note(user_id, context.user_data.get('tag'), new_note_text)
+            await update.message.reply_text(f"Заметка отредактирована:\n{new_note_text}")
+            context.user_data.pop('action')
+            context.user_data.pop('note_to_edit')
+        elif action == ACTION_EDIT_REMINDER:
+            try:
+                if '-' in text:
+                    new_reminder_text, time_part = text.split('-', 1)
+                    new_reminder_text = new_reminder_text.strip()
+                    time_part = time_part.strip()
+
+                    new_reminder_time = dateparser.parse(time_part, languages=['ru'])
+                    
+                    if new_reminder_time:
+                        # Преобразуем время в UTC перед сохранением в базу данных
+                        new_reminder_time = new_reminder_time.astimezone(timezone.utc)
+                        old_reminder_text = context.user_data.get('reminder_to_edit')
+                        delete_reminder(user_id, old_reminder_text)
+                        add_reminder(user_id, new_reminder_time, new_reminder_text)
+                        await update.message.reply_text(f"Напоминание отредактировано на {new_reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC):\n{new_reminder_text}")
+                    else:
+                        await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
+                else:
+                    await update.message.reply_text("Неверный формат. Используйте: текст напоминания - дата и время")
+            except Exception as e:
+                logger.error(f"Ошибка при редактировании напоминания: {e}")
+                await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
+            context.user_data.pop('action')
+            context.user_data.pop('reminder_to_edit')
 
 async def check_reminders(context):
     try:
