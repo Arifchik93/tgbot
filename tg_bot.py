@@ -370,6 +370,10 @@ async def main() -> None:
     # Запуск бота
     await application.run_polling()
 
+
 if __name__ == '__main__':
-    # Запуск асинхронного main()
-    asyncio.run(main())
+    # Получаем текущий цикл событий
+    loop = asyncio.get_event_loop()
+
+    # Запуск main() в существующем цикле событий
+    loop.run_until_complete(main())
