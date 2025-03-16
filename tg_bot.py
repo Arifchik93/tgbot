@@ -5,6 +5,25 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import dateparser
 import os
+import asyncio
+
+
+async def check_reminders(app):
+    while True:
+        with sqlite3.connect('organizer.db') as conn:
+            cursor = conn.cursor()
+            now = datetime.now().strftime('%Y-%m-%d %H:%M')
+            cursor.execute('SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= ?', (now,))
+            reminders = cursor.fetchall()
+            for reminder in reminders:
+                user_id, reminder_text = reminder
+                try:
+                    await app.bot.send_message(chat_id=user_id, text=f'Напоминание: {reminder_text}')
+                    cursor.execute('DELETE FROM reminders WHERE user_id = ? AND reminder_text = ?', (user_id, reminder_text))
+                    conn.commit()
+                except Exception as e:
+                    logger.error(f"Ошибка при отправке напоминания: {e}")
+        await asyncio.sleep(60)  # Проверяем каждую минуту
 
 # Настройка логирования
 logging.basicConfig(
@@ -326,7 +345,7 @@ async def handle_message(update: Update, context) -> None:
                 await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
                 
 
-def main() -> None:
+async def main() -> None:
     # Инициализация базы данных
     init_db()
 
@@ -345,9 +364,11 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+    # Запуск задачи для проверки напоминаний
+    asyncio.create_task(check_reminders(application))
+
     # Запуск бота
-    application.run_polling()
-    
+    await application.run_polling()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
