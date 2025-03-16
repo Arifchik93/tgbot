@@ -372,8 +372,5 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    # Получаем текущий цикл событий
-    loop = asyncio.get_event_loop()
-
-    # Запуск main() в существующем цикле событий
-    loop.run_until_complete(main())
+    # Запуск main() с использованием asyncio.run()
+    asyncio.run(main())
