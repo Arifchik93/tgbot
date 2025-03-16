@@ -320,6 +320,7 @@ async def button(update: Update, context) -> None:
     elif callback_data.startswith('tag_'):
         await show_notes_by_tag(update, context)
 
+# Указываем ваш часовой пояс (UTC+3)
 MY_TIMEZONE = timezone(timedelta(hours=3))
 
 async def handle_message(update: Update, context) -> None:
@@ -351,13 +352,15 @@ async def handle_message(update: Update, context) -> None:
                     time_part = time_part.strip()
 
                     # Парсим время с учетом локального времени пользователя
-                    reminder_time = dateparser.parse(time_part, languages=['ru'])
+                    reminder_time = dateparser.parse(time_part, languages=['ru'], settings={'TIMEZONE': 'UTC+3'})
                     
                     if reminder_time:
-                        # Приводим время к UTC+3
-                        reminder_time = reminder_time.replace(tzinfo=MY_TIMEZONE).astimezone(timezone.utc)
-                        add_reminder(user_id, reminder_time, reminder_text)
-                        await update.message.reply_text(f"Напоминание добавлено на {reminder_time.astimezone(MY_TIMEZONE).strftime('%Y-%m-%d %H:%M')} (UTC+3):\n{reminder_text}")
+                        # Явно устанавливаем часовой пояс UTC+3
+                        reminder_time = reminder_time.replace(tzinfo=MY_TIMEZONE)
+                        # Преобразуем в UTC для хранения в базе данных
+                        reminder_time_utc = reminder_time.astimezone(timezone.utc)
+                        add_reminder(user_id, reminder_time_utc, reminder_text)
+                        await update.message.reply_text(f"Напоминание добавлено на {reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC+3):\n{reminder_text}")
                     else:
                         await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
                 else:
@@ -381,15 +384,17 @@ async def handle_message(update: Update, context) -> None:
                     time_part = time_part.strip()
 
                     # Парсим время с учетом локального времени пользователя
-                    new_reminder_time = dateparser.parse(time_part, languages=['ru'])
+                    new_reminder_time = dateparser.parse(time_part, languages=['ru'], settings={'TIMEZONE': 'UTC+3'})
                     
                     if new_reminder_time:
-                        # Приводим время к UTC+3
-                        new_reminder_time = new_reminder_time.replace(tzinfo=MY_TIMEZONE).astimezone(timezone.utc)
+                        # Явно устанавливаем часовой пояс UTC+3
+                        new_reminder_time = new_reminder_time.replace(tzinfo=MY_TIMEZONE)
+                        # Преобразуем в UTC для хранения в базе данных
+                        new_reminder_time_utc = new_reminder_time.astimezone(timezone.utc)
                         old_reminder_text = context.user_data.get('reminder_to_edit')
                         delete_reminder(user_id, old_reminder_text)
-                        add_reminder(user_id, new_reminder_time, new_reminder_text)
-                        await update.message.reply_text(f"Напоминание отредактировано на {new_reminder_time.astimezone(MY_TIMEZONE).strftime('%Y-%m-%d %H:%M')} (UTC+3):\n{new_reminder_text}")
+                        add_reminder(user_id, new_reminder_time_utc, new_reminder_text)
+                        await update.message.reply_text(f"Напоминание отредактировано на {new_reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC+3):\n{new_reminder_text}")
                     else:
                         await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
                 else:
