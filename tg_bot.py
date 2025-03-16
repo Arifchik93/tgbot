@@ -345,10 +345,12 @@ async def handle_message(update: Update, context) -> None:
         elif action == ACTION_ADD_REMINDER:
             try:
                 if '-' in text:
-                reminder_text, time_part = text.split('-', 1)
-                reminder_text = reminder_text.strip()
-                time_part = time_part.strip()
-                reminder_time = dateparser.parse(time_part, languages=['ru'])          
+                    reminder_text, time_part = text.split('-', 1)
+                    reminder_text = reminder_text.strip()
+                    time_part = time_part.strip()
+                    
+                    reminder_time = dateparser.parse(time_part, languages=['ru'])  
+                    
                     if reminder_time:
                     # Преобразуем время в UTC перед сохранением в базу данных
                     reminder_time = reminder_time.astimezone(timezone.utc)
