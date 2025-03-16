@@ -352,9 +352,9 @@ async def handle_message(update: Update, context) -> None:
                     reminder_time = dateparser.parse(time_part, languages=['ru'])  
                     
                     if reminder_time:
-                    # Преобразуем время в UTC перед сохранением в базу данных
-                    reminder_time = reminder_time.astimezone(timezone.utc)
-                    add_reminder(user_id, reminder_time, reminder_text)
+                        # Преобразуем время в UTC перед сохранением в базу данных
+                        reminder_time = reminder_time.astimezone(timezone.utc)
+                        add_reminder(user_id, reminder_time, reminder_text)
                         await update.message.reply_text(f"Напоминание добавлено на {reminder_time.strftime('%Y-%m-%d %H:%M')} (UTC):\n{reminder_text}")
                     else:
                         await update.message.reply_text("Не удалось распознать дату и время. Попробуйте еще раз.")
