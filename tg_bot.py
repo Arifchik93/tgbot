@@ -24,9 +24,9 @@ ACTION_EDIT_REMINDER = 'edit_reminder'
 
 DB_PATH = "/data/organizer.db"
 
-# Создание файла базы данных, если он не существует
-if not os.path.exists(DB_PATH):
-    open(DB_PATH, 'w').close()
+# Проверка прав на запись
+if not os.access(os.path.dirname(DB_PATH), os.W_OK):
+    raise PermissionError(f"Нет прав на запись в {os.path.dirname(DB_PATH)}")
 
 # Инициализация базы данных
 def init_db():
