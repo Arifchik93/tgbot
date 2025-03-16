@@ -452,7 +452,7 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Добавление фоновой задачи для проверки напоминаний
-    application.job_queue.run_repeating(check_reminders, interval=300.0, first=0.0)
+    application.job_queue.run_repeating(check_reminders, interval=60.0, first=0.0)
 
     # Запуск бота
     application.run_polling()
