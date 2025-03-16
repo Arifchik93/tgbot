@@ -329,7 +329,11 @@ async def handle_message(update: Update, context) -> None:
 # Основная функция
 def main() -> None:
     init_db()
-    application = Application.builder().token(os.getenv("TELEGRAM_BOT_TOKEN")).build()
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_BOT_TOKEN:
+    raise ValueError("Токен Telegram-бота не задан. Убедитесь, что переменная окружения TELEGRAM_BOT_TOKEN установлена.")
+    
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
