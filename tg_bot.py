@@ -423,7 +423,7 @@ async def check_reminders(context):
         for reminder in reminders:
             user_id, reminder_text = reminder
             await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
-            # delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
+            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
         
     except Exception as e:
         logger.error(f"Ошибка в check_reminders: {e}")
