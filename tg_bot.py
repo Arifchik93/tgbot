@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import dateparser
+import os
 
 # Настройка логирования
 logging.basicConfig(
@@ -328,7 +329,7 @@ async def handle_message(update: Update, context) -> None:
 # Основная функция
 def main() -> None:
     init_db()
-    application = Application.builder().token("7485221902:AAH9XHedJjQCXrXwLMYwr72NmOjVP3-mZ6g").build()
+    application = Application.builder().token(os.getenv("TELEGRAM_BOT_TOKEN")).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
