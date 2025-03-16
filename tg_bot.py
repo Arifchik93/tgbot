@@ -17,24 +17,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы для действий
-ACTION_ADD_NOTE = 'add_note'
+ACTION_ADD_NOTE = 'add_note'   
 ACTION_ADD_REMINDER = 'add_reminder'
 ACTION_EDIT_NOTE = 'edit_note'
 ACTION_EDIT_REMINDER = 'edit_reminder'
 
+DB_PATH = "/data/organizer.db"
+
 # Инициализация базы данных
 def init_db():
-    with sqlite3.connect('organizer.db') as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS notes
                      (user_id INTEGER, tag TEXT, note TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS reminders
                      (user_id INTEGER, reminder_time TEXT, reminder_text TEXT)''')
         conn.commit()
-
+            
 # Общая функция для выполнения SQL-запросов
 def execute_query(query, params=(), fetch=False):
-    with sqlite3.connect('organizer.db') as conn:
+    with sqlite3.connect('DB_PATH') as conn:
         c = conn.cursor()
         c.execute(query, params)
         if fetch:
