@@ -2,9 +2,24 @@ import sqlite3
 import logging
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, JobQueue
 import dateparser
 import os
+import asyncio
+
+
+async def check_reminders(context):
+    while True:
+        now = datetime.now().strftime('%Y-%m-%d %H:%M')
+        reminders = execute_query("SELECT user_id, reminder_text FROM reminders WHERE reminder_time <= ?", (now,), fetch=True)
+        
+        for reminder in reminders:
+            user_id, reminder_text = reminder
+            await context.bot.send_message(chat_id=user_id, text=f"⏰ Напоминание: {reminder_text}")
+            delete_reminder(user_id, reminder_text)  # Удаляем напоминание после отправки
+        
+        await asyncio.sleep(60)  # Проверяем каждую минуту
+        
 
 # Настройка логирования
 logging.basicConfig(
@@ -326,6 +341,8 @@ async def handle_message(update: Update, context) -> None:
                 await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
                 
 
+
+
 def main() -> None:
     # Инициализация базы данных
     init_db()
@@ -344,6 +361,9 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Добавление фоновой задачи для проверки напоминаний
+    application.job_queue.run_repeating(check_reminders, interval=60.0, first=0.0)
 
     # Запуск бота
     application.run_polling()
