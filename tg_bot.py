@@ -9,6 +9,9 @@ import asyncio
 import psycopg2
 from psycopg2 import sql
 
+
+
+
 # Функция для подключения к базе данных
 def get_db_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -27,7 +30,14 @@ ACTION_ADD_REMINDER = 'add_reminder'
 ACTION_EDIT_NOTE = 'edit_note'
 ACTION_EDIT_REMINDER = 'edit_reminder'
 
-
+def drop_tables():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DROP TABLE IF EXISTS notes")
+    c.execute("DROP TABLE IF EXISTS reminders")
+    conn.commit()
+    conn.close()
+    
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
@@ -404,6 +414,7 @@ async def check_reminders(context):
             
 
 def main() -> None:
+    drop_tables():
     # Инициализация базы данных
     init_db()
 
