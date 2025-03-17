@@ -431,7 +431,7 @@ async def check_reminders(context):
 # Основная функция
 def main() -> None:
     
-   # удаление бд drop_tables() 
+     drop_tables() # удаление бд
     
     # Инициализация базы данных
     init_db()
